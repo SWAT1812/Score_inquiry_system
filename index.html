@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<!-- 
+  Copyright 2026 Vanille C. 
+  All Rights Reserved.
+
+  NOTICE:
+  This HTML file is the property of Vanille C. Unauthorized modification, 
+  copying, and sharing are strictly prohibited. The academic information 
+  provided in this file is for reference only; please refer to your school's official 
+  transcript or system announcements for detailed information.
+-->
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>段考成績查詢系統</title>
+    <link rel="icon" href="https://duyn491kcolsw.cloudfront.net/files/3s/3se/3sed9w.svg">
+    <link rel="apple-touch-icon" href="https://duyn491kcolsw.cloudfront.net/files/3s/3se/3sed9w.svg">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* 自定義列印樣式 */
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { background: white; }
+            .modal-content { box-shadow: none; border: 1px solid #ddd; }
+        }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen flex flex-col">
+
+    <div id="loginSection" class="flex-grow flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center fade-in">
+            <h1 class="text-3xl font-bold text-blue-600 mb-6"><i class="fas fa-graduation-cap"></i> 成績查詢系統</h1>
+            <p class="text-gray-500 mb-4">請選擇要查詢的學生</p>
+            <select id="studentSelect" class="w-full p-3 border border-gray-300 rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="" disabled selected>-- 選擇學生姓名 --</option>
+                </select>
+            <button onclick="login()" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold">
+                進入查詢
+            </button>
+        </div>
+    </div>
+
+    <div id="dashboardSection" class="hidden flex-col w-full max-w-6xl mx-auto p-4 flex-grow">
+        
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-4 rounded-xl shadow-sm no-print">
+            <div class="flex items-center gap-4 mb-4 md:mb-0">
+                <h2 class="text-xl font-bold text-gray-700">
+                    <span id="displayStudentName" class="text-blue-600"></span> 的成績單
+                </h2>
+                <button onclick="logout()" class="text-sm text-gray-400 hover:text-red-500 underline">切換學生</button>
+            </div>
+            
+            <div class="flex w-full md:w-auto gap-2">
+                <div class="relative w-full md:w-64">
+                    <input type="text" id="searchInput" placeholder="搜尋考試 (如: 114第一次)" 
+                           class="w-full pl-10 pr-4 py-2 border rounded-full focus:ring-2 focus:ring-blue-400 outline-none"
+                           oninput="renderExamList()">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+            </div>
+        </div>
+
+        <div id="compareBar" class="hidden justify-between items-center bg-indigo-50 border border-indigo-200 p-3 rounded-lg mb-4 no-print fade-in">
+            <span class="text-indigo-700 font-medium text-sm">已選擇 <span id="selectedCount">0</span>/3 筆成績進行比較</span>
+            <button onclick="generateComparison()" class="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-sm hover:bg-indigo-700 shadow-sm">
+                <i class="fas fa-chart-line mr-1"></i> 開始比較
+            </button>
+        </div>
+
+        <div id="examGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 no-print">
+            </div>
+
+        <div id="comparisonResult" class="hidden bg-white rounded-xl shadow-lg p-6 fade-in mb-8">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h3 class="text-2xl font-bold text-gray-800">成績比較分析</h3>
+                <button onclick="closeComparison()" class="text-gray-500 hover:text-red-500 no-print">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse" id="compareTable">
+                    </table>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="scoreModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4 print-only-container">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden modal-content flex flex-col max-h-[90vh]">
+            
+            <div class="bg-blue-600 p-4 flex justify-between items-center text-white no-print">
+                <h3 id="modalTitle" class="text-lg font-bold">考試詳情</h3>
+                <button onclick="closeModal()" class="hover:bg-blue-700 p-1 rounded"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="p-6 overflow-y-auto">
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800" id="printExamTitle"></h2>
+                    <p class="text-gray-500">學生：<span id="printStudentName"></span></p>
+                </div>
+
+                <table class="w-full mb-6 border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 border-b-2 border-gray-200 text-gray-600 text-sm uppercase">
+                            <th class="py-3 px-4 text-left">科目</th>
+                            <th class="py-3 px-4 text-right">分數</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scoreTableBody" class="text-gray-700">
+                        </tbody>
+                    <tfoot class="bg-gray-50 font-bold text-gray-800 border-t-2 border-gray-200">
+                        <tr>
+                            <td class="py-3 px-4">總分</td>
+                            <td class="py-3 px-4 text-right" id="modalTotal">0</td>
+                        </tr>
+                        <tr>
+                            <td class="py-3 px-4">平均</td>
+                            <td class="py-3 px-4 text-right" id="modalAvg">0</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div class="grid grid-cols-2 gap-4 mt-4">
+                    <div class="bg-blue-50 p-3 rounded-lg text-center">
+                        <span class="block text-xs text-blue-500">班級排名</span>
+                        <span class="text-xl font-bold text-blue-700" id="modalClassRank">-</span>
+                    </div>
+                    <div class="bg-purple-50 p-3 rounded-lg text-center">
+                        <span class="block text-xs text-purple-500">科排名</span>
+                        <span class="text-xl font-bold text-purple-700" id="modalDeptRank">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t bg-gray-50 flex justify-end gap-3 no-print">
+                <button onclick="window.print()" class="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 flex items-center gap-2">
+                    <i class="fas fa-print"></i> 列印
+                </button>
+                <button onclick="closeModal()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300">
+                    關閉
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 資料庫設定 (在此處新增科目與成績) ---
+        const database = {
+            "陳柏諺": [
+                {
+                    id: "114-1",
+                    title: "114學年度 高二 第一學期 第一次段考",
+                    shortTitle: "114上 高二第一次段考",
+                    scores: { "歷史": 97, "數學": 76, "國語文": 86, "文學與人生": 84, "英語文": 98, "英文閱讀指導": 92, "造形原理": 83, "電腦向量繪圖實習": 83, "設計與編排概論": 100, "生涯規劃": 65 },
+                    classRank: 2,
+                    deptRank: 5
+                },
+                {
+                    id: "114-2",
+                    title: "114學年度 高二 第一學期 第二次段考",
+                    shortTitle: "114上 高二第二次段考",
+                    scores: { "歷史": 100, "數學": 20, "國語文": 84, "文學與人生": 80, "英語文": 87, "英文閱讀指導": 81, "造形原理": 82, "電腦向量繪圖實習": 80, "立體造形設計實習": 90, "設計與編排概論": 96, "立體造形設計實作": 0, "生涯規劃": 73, "選修 攝影實習": 93 },
+                    classRank: 7,
+                    deptRank: 17
+                },
+                {
+                    id: "114-3",
+                    title: "114學年度 高二 第一學期 第三次段考",
+                    shortTitle: "114上 高二第三次段考",
+                    scores: { "歷史": 100, "數學": 0, "國語文": 0, "文學與人生": 0, "英語文": 102, "英文閱讀指導": 96, "造形原理": 54, "電腦向量繪圖實習": 65, "設計與編排概論": 86.25, "生涯規劃": 84 },
+                    classRank: 0,
+                    deptRank: 0
+                },
+            ],
+            "陳禹寧": [
+                {
+                    id: "114-1",
+                    title: "114學年度 國三 第一學期 第一次段考",
+                    shortTitle: "114上 國三第一次段考",
+                    scores: { "國文": 75, "英語": 51, "健教": 94, "數學": 64, "歷史": 81, "地理": 74, "公民": 81, "自然科學": 46 },
+                    classRank: 0,
+                    deptRank: 0
+                },
+                {
+                    id: "114-2",
+                    title: "114學年度 國三 第一學期 第二次段考",
+                    shortTitle: "114上 國三第二次段考",
+                    scores: { "國文": 64, "英語": 42, "健教": 98, "數學": 40, "歷史": 78, "地理": 60, "公民": 54, "視覺藝術": 93, "音樂": 87, "表演藝術": 85, "輔導": 86, "童軍": 90, "家政": 93, "自然科學": 66, "生活科技": 97, "資訊科技": 100 },
+                    classRank: 0,
+                    deptRank: 0
+                },
+                {
+                    id: "114-3",
+                    title: "114學年度 國三 第一學期 第三次段考",
+                    shortTitle: "114上 國三第三次段考",
+                    scores: { "國文": 0, "英語": 0, "健教": 0, "數學": 0, "歷史": 0, "地理": 0, "公民": 0, "自然科學": 0 },
+                    classRank: 0,
+                    deptRank: 0
+                },
+                {
+                    id: "mock-exam-1",
+                    title: "114學年度 第一學期 國三 第一次模擬考",
+                    shortTitle: "114上 國三第一次模擬考",
+                    scores: { "國文": 5, "英文": 2, "數學": 2, "自然": 2, "社會": 2 },
+                    classRank: 0,
+                    deptRank: 0
+                },
+                {
+                    id: "mock-exam-2",
+                    title: "114學年度 第一學期 國三 第二次模擬考",
+                    shortTitle: "114上 國三第二次模擬考",
+                    scores: { "國文": 7, "英文": 2, "數學": 2, "自然": 2, "社會": 3 },
+                    classRank: 13,
+                    deptRank: 0
+                },
+                {
+                    id: "mock-exam-3",
+                    title: "114學年度 第二學期 國三 第三次模擬考",
+                    shortTitle: "114下 國三第三次模擬考",
+                    scores: { "國文": 0, "英文": 0, "數學": 0, "自然": 0, "社會": 0 },
+                    classRank: 0,
+                    deptRank: 0
+                },
+                {
+                    id: "mock-exam-4",
+                    title: "114學年度 第二學期 國三 第四次模擬考",
+                    shortTitle: "114下 國三第四次模擬考",
+                    scores: { "國文": 0, "英文": 0, "數學": 0, "自然": 0, "社會": 0 },
+                    classRank: 0,
+                    deptRank: 0
+                },
+            ]
+        };
+
+        // --- 全域變數 ---
+        let currentStudent = null;
+        let selectedCompareIds = [];
+
+        // --- 初始化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initLoginSelect();
+            checkUrlParams(); // 檢查網址是否有比較參數
+        });
+
+        // 初始化登入選單
+        function initLoginSelect() {
+            const select = document.getElementById('studentSelect');
+            Object.keys(database).forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+        }
+
+        // --- 核心邏輯 ---
+
+        // 登入
+        function login(studentName = null) {
+            const select = document.getElementById('studentSelect');
+            currentStudent = studentName || select.value;
+            
+            if (!currentStudent) {
+                alert("請先選擇學生！");
+                return;
+            }
+
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            document.getElementById('dashboardSection').classList.add('flex');
+            document.getElementById('displayStudentName').textContent = currentStudent;
+            
+            renderExamList();
+        }
+
+        // 登出
+        function logout() {
+            currentStudent = null;
+            selectedCompareIds = [];
+            // 清除網址參數但不刷新頁面
+            window.history.pushState({}, document.title, window.location.pathname);
+            document.getElementById('dashboardSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('flex');
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('comparisonResult').classList.add('hidden');
+            document.getElementById('examGrid').classList.remove('hidden');
+            document.getElementById('compareBar').classList.remove('flex');
+            document.getElementById('compareBar').classList.add('hidden');
+        }
+
+        // 渲染考試列表
+        function renderExamList() {
+            const grid = document.getElementById('examGrid');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const exams = database[currentStudent];
+            grid.innerHTML = '';
+
+            exams.forEach(exam => {
+                // 搜尋過濾
+                if (searchTerm && !exam.title.includes(searchTerm) && !exam.shortTitle.includes(searchTerm)) {
+                    return;
+                }
+
+                // 計算總分與平均 (顯示在卡片上)
+                const scores = Object.values(exam.scores);
+                const total = scores.reduce((a, b) => a + b, 0);
+                const avg = (total / scores.length).toFixed(1);
+
+                // Card HTML
+                const card = document.createElement('div');
+                card.className = "bg-white p-6 rounded-xl shadow-md hover:shadow-xl transition border border-gray-100 relative group cursor-pointer";
+                card.onclick = (e) => {
+                    // 如果點擊的是 checkbox，不開啟 modal
+                    if(e.target.type === 'checkbox') return;
+                    openModal(exam);
+                };
+
+                // 檢查是否被選中比較
+                const isChecked = selectedCompareIds.includes(exam.title);
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded uppercase">EXAM</div>
+                        <input type="checkbox" 
+                               class="w-5 h-5 cursor-pointer z-10" 
+                               title="加入比較" 
+                               onchange="toggleCompare('${exam.title}', this)"
+                               ${isChecked ? 'checked' : ''}
+                               onclick="event.stopPropagation()">
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-2 group-hover:text-blue-600 transition">${exam.shortTitle}</h3>
+                    <div class="flex justify-between text-sm text-gray-500 mt-4 pt-4 border-t">
+                        <span>平均: <span class="${avg < 60 ? 'text-red-500 font-bold' : 'text-gray-800 font-semibold'}">${avg}</span></span>
+                        <span>班排: ${exam.classRank}</span>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // --- Modal (詳情) 邏輯 ---
+
+        function openModal(exam) {
+            const modal = document.getElementById('scoreModal');
+            document.getElementById('modalTitle').textContent = exam.title;
+            document.getElementById('printExamTitle').textContent = exam.title;
+            document.getElementById('printStudentName').textContent = currentStudent;
+
+            const tbody = document.getElementById('scoreTableBody');
+            tbody.innerHTML = '';
+
+            let total = 0;
+            let count = 0;
+
+            for (const [subject, score] of Object.entries(exam.scores)) {
+                total += score;
+                count++;
+                
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-100 hover:bg-gray-50";
+                
+                // 分數顏色判斷
+                const scoreClass = score < 60 ? "text-red-600 font-bold" : "text-gray-800 font-medium";
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4">${subject}</td>
+                    <td class="py-3 px-4 text-right ${scoreClass}">${score}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+
+            const avg = (total / count).toFixed(1);
+            document.getElementById('modalTotal').textContent = total;
+            document.getElementById('modalAvg').textContent = avg;
+            document.getElementById('modalClassRank').textContent = exam.classRank;
+            document.getElementById('modalDeptRank').textContent = exam.deptRank;
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('scoreModal').classList.add('hidden');
+        }
+
+        // --- 比較功能邏輯 ---
+
+        function toggleCompare(examTitle, checkbox) {
+            if (checkbox.checked) {
+                if (selectedCompareIds.length >= 3) {
+                    alert("最多只能比較 3 筆成績！");
+                    checkbox.checked = false;
+                    return;
+                }
+                selectedCompareIds.push(examTitle);
+            } else {
+                selectedCompareIds = selectedCompareIds.filter(id => id !== examTitle);
+            }
+            updateCompareUI();
+        }
+
+        function updateCompareUI() {
+            const bar = document.getElementById('compareBar');
+            document.getElementById('selectedCount').textContent = selectedCompareIds.length;
+            
+            if (selectedCompareIds.length > 0) {
+                bar.classList.remove('hidden');
+                bar.classList.add('flex');
+            } else {
+                bar.classList.add('hidden');
+                bar.classList.remove('flex');
+            }
+        }
+
+        function generateComparison() {
+            // 1. 產生 URL 參數
+            // 格式: ?student=王大明&score="114第一次","114第二次"
+            const examString = selectedCompareIds.map(id => `"${id}"`).join(',');
+            const newUrl = `?student=${encodeURIComponent(currentStudent)}&score=${encodeURIComponent(examString)}`;
+            window.history.pushState({path: newUrl}, '', newUrl);
+
+            // 2. 渲染比較表
+            renderComparisonTable();
+        }
+
+        function renderComparisonTable() {
+            const container = document.getElementById('comparisonResult');
+            const table = document.getElementById('compareTable');
+            const exams = database[currentStudent].filter(e => selectedCompareIds.includes(e.title));
+            
+            // 收集所有科目
+            let allSubjects = new Set();
+            exams.forEach(e => Object.keys(e.scores).forEach(s => allSubjects.add(s)));
+            const subjects = Array.from(allSubjects);
+
+            // 建構表頭
+            let html = `<thead><tr class="bg-gray-100 border-b">
+                <th class="p-3 border-r min-w-[100px]">科目/項目</th>`;
+            exams.forEach(e => {
+                html += `<th class="p-3 text-center min-w-[120px] font-bold text-blue-700">${e.shortTitle}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+
+            // 建構科目分數列
+            subjects.forEach(sub => {
+                html += `<tr class="border-b hover:bg-gray-50"><td class="p-3 font-medium text-gray-600 border-r">${sub}</td>`;
+                exams.forEach(e => {
+                    const score = e.scores[sub];
+                    const val = score !== undefined ? score : '-';
+                    const color = (typeof val === 'number' && val < 60) ? 'text-red-500 font-bold' : 'text-gray-800';
+                    html += `<td class="p-3 text-center ${color}">${val}</td>`;
+                });
+                html += `</tr>`;
+            });
+
+            // 統計列
+            html += `<tr class="bg-gray-50 font-bold border-t-2 border-gray-200"><td class="p-3 border-r">平均</td>`;
+            exams.forEach(e => {
+                const scores = Object.values(e.scores);
+                const avg = (scores.reduce((a,b)=>a+b,0) / scores.length).toFixed(1);
+                html += `<td class="p-3 text-center">${avg}</td>`;
+            });
+            html += `</tr>`;
+             html += `<tr class="bg-gray-50 font-bold"><td class="p-3 border-r">班排</td>`;
+            exams.forEach(e => {
+                html += `<td class="p-3 text-center text-blue-600">#${e.classRank}</td>`;
+            });
+            html += `</tr>`;
+
+            html += `</tbody>`;
+            table.innerHTML = html;
+
+            // 顯示區域
+            container.classList.remove('hidden');
+            document.getElementById('examGrid').classList.add('hidden'); // 隱藏列表讓畫面更專注
+        }
+
+        function closeComparison() {
+            document.getElementById('comparisonResult').classList.add('hidden');
+            document.getElementById('examGrid').classList.remove('hidden');
+            // 清除 URL 參數
+            window.history.pushState({}, document.title, window.location.pathname);
+        }
+
+        // --- URL 參數解析 ---
+        function checkUrlParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const student = urlParams.get('student');
+            const scoreRaw = urlParams.get('score');
+
+            if (student && database[student]) {
+                login(student);
+
+                if (scoreRaw) {
+                    // 解析格式: "Exam1","Exam2" -> ['Exam1', 'Exam2']
+                    // 簡單的正則表達式移除引號
+                    const examTitles = scoreRaw.split(',').map(s => s.replace(/^"|"$/g, ''));
+                    
+                    selectedCompareIds = examTitles;
+                    updateCompareUI();
+                    
+                    // 稍微延遲以確保畫面渲染完成
+                    setTimeout(() => {
+                        renderComparisonTable();
+                        // 滾動到比較區域
+                        document.getElementById('comparisonResult').scrollIntoView({behavior: 'smooth'});
+                    }, 100);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
